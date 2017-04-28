@@ -4,7 +4,8 @@
 # license information.
 # --------------------------------------------------------------------------
 
-# This script expects that the following environment vars are set:
+# This script expects that the following environment vars are set, or they can be hardcoded in key_vault_sample_config, these values
+# SHOULD NOT be hardcoded in any code derived from this sample:
 #
 # AZURE_TENANT_ID: with your Azure Active Directory tenant id or domain
 # AZURE_CLIENT_ID: with your Azure Active Directory Application Client ID

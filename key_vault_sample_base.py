@@ -72,10 +72,52 @@ class KeyVaultSampleBase(object):
         """
         vault_name = KeyVaultSampleBase.get_unique_name()
 
+        # setup vault permissions for the access policy for teh sample service principle
         permissions = Permissions()
-        permissions.keys = [KeyPermissions.all]
-        permissions.secrets = [SecretPermissions.all]
-        permissions.certificates = [CertificatePermissions.all]
+
+        # add all key permissions (alternatively [KeyPermissions.all])
+        permissions.keys = [KeyPermissions.encrypt,
+                            KeyPermissions.decrypt,
+                            KeyPermissions.wrap_key,
+                            KeyPermissions.unwrap_key,
+                            KeyPermissions.sign,
+                            KeyPermissions.verify,
+                            KeyPermissions.get,
+                            KeyPermissions.list,
+                            KeyPermissions.create,
+                            KeyPermissions.update,
+                            KeyPermissions.import_enum,
+                            KeyPermissions.delete,
+                            KeyPermissions.backup,
+                            KeyPermissions.restore,
+                            KeyPermissions.recover,
+                            KeyPermissions.purge]
+
+        # add all secret permissions (alternatively [SecretPermissions.all])
+        permissions.secrets = [SecretPermissions.get,
+                               SecretPermissions.list,
+                               SecretPermissions.set,
+                               SecretPermissions.delete,
+                               SecretPermissions.backup,
+                               SecretPermissions.restore,
+                               SecretPermissions.recover,
+                               SecretPermissions.purge]
+
+        # add all certificate permissions (alternatively [CertificatePermissions.all])
+        permissions.certificates = [CertificatePermissions.get,
+                                    CertificatePermissions.list,
+                                    CertificatePermissions.delete,
+                                    CertificatePermissions.create,
+                                    CertificatePermissions.import_enum,
+                                    CertificatePermissions.update,
+                                    CertificatePermissions.managecontacts,
+                                    CertificatePermissions.getissuers,
+                                    CertificatePermissions.listissuers,
+                                    CertificatePermissions.setissuers,
+                                    CertificatePermissions.deleteissuers,
+                                    CertificatePermissions.manageissuers,
+                                    CertificatePermissions.recover,
+                                    CertificatePermissions.purge]
 
         policy = AccessPolicyEntry(self.config.tenant_id, self.config.client_oid, permissions)
 
