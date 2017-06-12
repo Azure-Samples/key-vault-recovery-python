@@ -3,9 +3,9 @@ services: keyvault
 platforms: python
 author: schaabs
 ---
-# Managing Soft Delete Enabled Key Vaults using the Azure Python SDK
+# Recovery scenario samples for Azure Key Vault using the Azure Python SDK
 
-This sample repo includes sample code demonstrating how to utilize the soft delete feature of Azure Key Vault to recover and purge deleted vaults, 
+This sample repo includes sample code demonstrating how to utilize the soft delete and backup restore features of Azure Key Vault to backup, restore, recover, and purge deleted vaults, 
 secrets, keys and certificates using the [Azure Python SDK](https://azure.microsoft.com/en-us/develop/python/). Some common scenarios this repo intends to target are:
 
 * Backing up and restoring key vault secrets and keys
