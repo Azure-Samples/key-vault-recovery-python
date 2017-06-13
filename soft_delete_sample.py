@@ -22,7 +22,7 @@ from azure.keyvault.models import KeyVaultErrorException
 from key_vault_sample_base import KeyVaultSampleBase, ALL_KEY_PERMISSIONS, ALL_SECRET_PERMISSIONS, ALL_CERT_PERMISSIONS
 
 
-class KeyVaultRecoverySample(KeyVaultSampleBase):
+class SoftDeleteSample(KeyVaultSampleBase):
     """
     Collection of samples using the soft delete feature of Azure Key Vault
     """
