@@ -17,20 +17,13 @@
 
 
 from key_vault_sample_base import KeyVaultSampleBase
-
+from azure.keyvault import KeyVaultId
 
 class BackupRestoreSample(KeyVaultSampleBase):
     """
     Collection of samples using the backup and restore features of Azure Key Vault
     """
-    def __init__(self):
-        super(KeyVaultSampleBase, self).__init__()
-
-    def run_samples(self):
-        self.backup_restore_secret_sample()
-        self.backup_restore_key_sample()
-
-    def backup_restore_secret_sample(self):
+    def backup_restore_secret(self):
         """
         Creates a key vault containing a secret, then uses backup_secret and restore_secret to 
         import the secret to another key vault 
@@ -42,7 +35,7 @@ class BackupRestoreSample(KeyVaultSampleBase):
         first_vault = self.create_vault()
 
         # add a secret to the vault
-        secret_name = KeyVaultSampleBase.get_unique_name()
+        secret_name = KeyVaultSampleBase.get_unique_name('secret')
         secret_value = 'this is a secret value to be migrated from one vault to another'
 
         secret = self.keyvault_data_client.set_secret(first_vault.properties.vault_uri, secret_name, secret_value)
@@ -61,11 +54,11 @@ class BackupRestoreSample(KeyVaultSampleBase):
         self.keyvault_data_client.restore_secret(second_vault.properties.vault_uri, backup.value)
 
         # get the secret from the new vault
-        restored_secret = self.keyvault_data_client.get_secret(second_vault.properties.vault_uri, secret_name)
+        restored_secret = self.keyvault_data_client.get_secret(second_vault.properties.vault_uri, secret_name, KeyVaultId.version_none)
 
         print(restored_secret)
 
-    def backup_restore_key_sample(self):
+    def backup_restore_key(self):
         """
         Creates a key vault containing a key, then uses backup_key and restore_key to 
         import the key with matching versions to another key vault 
@@ -83,8 +76,6 @@ class BackupRestoreSample(KeyVaultSampleBase):
 
         print(key)
 
-        self.keyvault_data_client.import_key(first_vault.properties.vault_uri, key_name, )
-
         # backup the key
         backup = self.keyvault_data_client.backup_key(first_vault.properties.vault_uri, key_name)
 
@@ -97,7 +88,7 @@ class BackupRestoreSample(KeyVaultSampleBase):
         self.keyvault_data_client.restore_key(second_vault.properties.vault_uri, backup.value)
 
         # get the secret from the new vault
-        restored_key = self.keyvault_data_client.get_key(second_vault.properties.vault_uri, key_name,)
+        restored_key = self.keyvault_data_client.get_key(second_vault.properties.vault_uri, key_name, KeyVaultId.version_none)
 
         print(restored_key)
 
