@@ -14,6 +14,22 @@ secrets, keys and certificates using the [Azure Python SDK](https://azure.micros
 * Recovering or purging deleted vaults
 * Recovering or purging of key vault secrets, keys, and certificates
 
+## Samples in this repo
+backup_restore_sample.py:
+
+        backup_restore_key -- backs up a key vault key and restores it to another key vault
+        backup_restore_secret -- backs up a key vault secret and restores it to another key vault
+
+soft_delete_sample.py:
+
+        create_soft_delete_enabled_vault -- creates a key vault which has soft delete enabled so that the vault as well as all of its keys,
+        certificates and secrets are recoverable
+        enable_soft_delete_on_existing_vault -- enables soft delete on an existing vault
+        deleted_vault_recovery -- a sample of enumerating, retrieving, recovering and purging deleted key vaults
+        deleted_certificate_recovery -- a sample of enumerating, retrieving, recovering and purging deleted certificates from a key vault
+        deleted_key_recovery -- a sample of enumerating, retrieving, recovering and purging deleted keys from a key vault
+        deleted_secret_recovery -- a sample of enumerating, retrieving, recovering and purging deleted secrets from a key vault
+
 ## Running The samples
 1. If you don't already have it, [install Python](https://www.python.org/downloads/).
 
@@ -54,10 +70,10 @@ or [Azure Portal](http://azure.microsoft.com/documentation/articles/resource-gro
     export AZURE_SUBSCRIPTION_ID={your subscription id}
     ```
 
-7. Run the samples.
+7. Run the samples, optionally specifying a space delimited list of specific samples to run.
 
     ```
-    python run_all_samples.py
+    python run_all_samples.py [samplename[ samplename...]]
     ```
 
 ## Minimum Requirements

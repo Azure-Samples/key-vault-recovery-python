@@ -17,7 +17,6 @@
 # see the implementation in key_vault_sample_config.py
 
 import time
-import sys
 from azure.mgmt.keyvault.models import Permissions, KeyPermissions, SecretPermissions, CertificatePermissions, \
     AccessPolicyEntry, VaultProperties, VaultCreateOrUpdateParameters, Sku, SkuName
 from azure.keyvault.models import KeyVaultErrorException
@@ -28,15 +27,13 @@ from key_vault_sample_base import KeyVaultSampleBase, KEY_PERMISSIONS_ALL, SECRE
 
 class SoftDeleteSample(KeyVaultSampleBase):
     """
-    Collection of samples using the soft delete feature of Azure Key Vault
+    A collection of samples using the soft delete feature of Azure Key Vault
     """
     @keyvaultsample
     def create_soft_delete_enabled_vault(self):
         """
-        Provides a sample for creating a key vault which has recovery enable so that the vault as well as all of its keys, 
+        creates a key vault which has soft delete enabled so that the vault as well as all of its keys, 
         certificates and secrets are recoverable
-        :return: a key vault which has been created with recovery enabled 
-        :rtype: :class:`Vault <azure.keyvault.generated.models.Vault>`
         """
         vault_name = get_name('vault')
 
@@ -71,12 +68,11 @@ class SoftDeleteSample(KeyVaultSampleBase):
 
         print('vault {} created enable_soft_delete={}'.format(vault.name, vault.properties.enable_soft_delete))
 
-        return vault
 
     @keyvaultsample
     def enable_soft_delete_on_existing_vault(self):
         """        
-        Provides sample code for enabling soft delete on an existing vault
+        enables soft delete on an existing vault
         """
         # create a vault without soft delete enabled
         vault = self.create_vault()
@@ -108,8 +104,7 @@ class SoftDeleteSample(KeyVaultSampleBase):
     @keyvaultsample
     def deleted_vault_recovery(self):
         """
-        Provides a sample code for enumerating, retrieving, recovering and purging deleted key vaults
-        :return: None 
+        a sample of enumerating, retrieving, recovering and purging deleted key vaults
         """
         # create vaults enabling the soft delete feature on each
         vault_to_recover = self.create_vault()
@@ -159,8 +154,7 @@ class SoftDeleteSample(KeyVaultSampleBase):
     @keyvaultsample
     def deleted_secret_recovery(self):
         """
-        Provides a sample code for enumerating, retrieving, recovering and purging deleted secrets from a key vault
-        :return: None 
+        a sample of enumerating, retrieving, recovering and purging deleted secrets from a key vault
         """
         # create a vault enabling the soft delete feature
         vault = self.create_vault()
@@ -210,8 +204,7 @@ class SoftDeleteSample(KeyVaultSampleBase):
     @keyvaultsample
     def deleted_key_recovery(self):
         """
-        Provides a sample code for enumerating, retrieving, recovering and purging deleted keys from a key vault
-        :return: None 
+        a sample of enumerating, retrieving, recovering and purging deleted keys from a key vault
         """
         # create a vault enabling the soft delete feature
         vault = self.create_vault()
@@ -260,8 +253,7 @@ class SoftDeleteSample(KeyVaultSampleBase):
     @keyvaultsample
     def deleted_certificate_recovery(self):
         """
-        Provides a sample code for enumerating, retrieving, recovering and purging deleted certificates from a key vault
-        :return: None 
+        a sample of enumerating, retrieving, recovering and purging deleted certificates from a key vault 
         """
         # create a vault enabling the soft delete feature
         vault = self.create_vault()
