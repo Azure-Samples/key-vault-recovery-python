@@ -5,8 +5,8 @@
 # --------------------------------------------------------------------------
 import sys
 import os
-import json
 import time
+import json
 import inspect
 import traceback
 import azure.mgmt.keyvault.models
@@ -30,6 +30,11 @@ CERTIFICATE_PERMISSIONS_ALL = [perm.value for perm in CertificatePermissions]
 _rand = Random()
 
 def get_name(base):
+    """
+    randomly builds a unique name for an entity beginning with the specified base 
+    :param base: the prefix for the generated name
+    :return: a random unique name
+    """
     name = '{}-{}-{}'.format(base, _rand.choice(adjectives), _rand.choice(nouns))
     if len(name) < 22:
         name += '-'
@@ -38,6 +43,9 @@ def get_name(base):
     return name
 
 def keyvaultsample(f):
+    """
+    decorator function for marking key vault sample methods
+    """
     def wrapper(self):
         try:
             print('--------------------------------------------------------------------')
@@ -49,26 +57,31 @@ def keyvaultsample(f):
             print('ERROR: running sample failed with raised exception:')
             traceback.print_exception(type(e), e, e.__traceback__)
     wrapper.__name__ = f.__name__
+    wrapper.__doc__ = f.__doc__
     wrapper.kv_sample = True
     return wrapper
 
 def run_all_samples(samples):
+    """
+    runs all sample methods (methods marked with @keyvaultsample) on the specified samples objects, 
+    filtering to any sample methods specified on the command line
+    :param samples: a list of sample objects
+    :return: None 
+    """
     requested_samples = sys.argv[1:]
     sample_funcs = []
 
     for s in samples:
         class_samples = {name: func for name, func in s.samples if not requested_samples or name in requested_samples}
         if class_samples:
-            mod_name = s.__module__ if not s.__module__ == '__main__' \
-                else os.path.splitext(os.path.basename(sys.modules[s.__module__].__file__))[0]
-            print('{}:'.format(mod_name))
+            mod_name = os.path.basename(sys.modules[s.__module__].__file__)
+            print('\n{}:\n'.format(mod_name))
             for name, func in class_samples.items():
-                print('\t{}'.format(name))
+                print('\t{} -- {}'.format(name, func.__doc__.strip()))
                 sample_funcs.append(func)
 
     for f in sample_funcs:
         f()
-
 
 
 class KeyVaultSampleBase(object):
@@ -173,11 +186,14 @@ class KeyVaultSampleBase(object):
         return vault
 
     def _poll_for_vault_connection(self, vault_uri, retry_wait=10, max_retries=4):
-        
+        """
+        polls the data client 'get_secrets' method until a 200 response is received indicating the the vault
+        is available for data plane requests
+        """
         last_error = None
         for x in range(max_retries - 1):
             try:
-                # sleep first to avoid inproper DNS caching
+                # sleep first to avoid improper DNS caching
                 time.sleep(retry_wait)
                 self.keyvault_data_client.get_secrets(vault_uri)
                 return
@@ -191,7 +207,7 @@ class KeyVaultSampleBase(object):
             serialized = [self._serialize(i) for i in list(obj)]
         else:
             serialized = self._serializer.body(obj, type(obj).__name__)
-        return serialized
+        return json.dumps(serialized, indent=4, separators=(',', ': '))
 
 
 adjectives = ['able', 'acid', 'adept', 'aged', 'agile', 'ajar', 'alert', 'alive', 'all', 'ample',

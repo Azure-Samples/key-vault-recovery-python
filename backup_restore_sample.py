@@ -20,15 +20,13 @@ from key_vault_sample_base import KeyVaultSampleBase, keyvaultsample, get_name, 
 
 class BackupRestoreSample(KeyVaultSampleBase):
     """
-    Collection of samples using the backup and restore features of Azure Key Vault
+    A collection of samples using the backup and restore features of Azure Key Vault
     """
 
     @keyvaultsample
     def backup_restore_secret(self):
         """
-        Creates a key vault containing a secret, then uses backup_secret and restore_secret to 
-        import the secret to another key vault 
-        :return: None
+        backs up a key vault secret and restores it to another key vault
         """
         # create a key vault
         first_vault = self.create_vault()
@@ -62,9 +60,7 @@ class BackupRestoreSample(KeyVaultSampleBase):
     @keyvaultsample
     def backup_restore_key(self):
         """
-        Creates a key vault containing a key, then uses backup_key and restore_key to 
-        import the key with matching versions to another key vault 
-        :return: None
+        backs up a key vault key and restores it to another key vault
         """
         # create a key vault
         first_vault = self.create_vault()
