@@ -16,50 +16,38 @@
 # These are read from the environment and exposed through the KeyVaultSampleConfig class. For more information please
 # see the implementation in key_vault_sample_config.py
 
+import time
+import sys
 from azure.mgmt.keyvault.models import Permissions, KeyPermissions, SecretPermissions, CertificatePermissions, \
-    AccessPolicyEntry, VaultProperties, VaultCreateOrUpdateParameters, Sku
+    AccessPolicyEntry, VaultProperties, VaultCreateOrUpdateParameters, Sku, SkuName
 from azure.keyvault.models import KeyVaultErrorException
-from key_vault_sample_base import KeyVaultSampleBase, ALL_KEY_PERMISSIONS, ALL_SECRET_PERMISSIONS, ALL_CERT_PERMISSIONS
+from azure.keyvault import KeyVaultId
+from key_vault_sample_base import KeyVaultSampleBase, KEY_PERMISSIONS_ALL, SECRET_PERMISSIONS_ALL, CERTIFICATE_PERMISSIONS_ALL, \
+    keyvaultsample, get_name, run_all_samples
 
 
-class KeyVaultRecoverySample(KeyVaultSampleBase):
+class SoftDeleteSample(KeyVaultSampleBase):
     """
     Collection of samples using the soft delete feature of Azure Key Vault
     """
-    def __init__(self):
-        super(KeyVaultSampleBase, self).__init__()
-
-    def run_samples(self):
-        """
-        Runs all key vault recover samples
-        :return: None
-        """
-        self.create_soft_delete_enabled_vault_sample()
-        self.enable_soft_delete_on_existing_vault_sample()
-        self.deleted_vault_sample()
-        self.deleted_secret_sample()
-        self.deleted_key_sample()
-        self.deleted_certificate_sample()
-
-    def create_soft_delete_enabled_vault_sample(self):
+    @keyvaultsample
+    def create_soft_delete_enabled_vault(self):
         """
         Provides a sample for creating a key vault which has recovery enable so that the vault as well as all of its keys, 
         certificates and secrets are recoverable
         :return: a key vault which has been created with recovery enabled 
         :rtype: :class:`Vault <azure.keyvault.generated.models.Vault>`
         """
-        self.setup_sample()
-
-        vault_name = KeyVaultSampleBase.get_unique_name()
+        vault_name = get_name('vault')
 
         permissions = Permissions()
-        permissions.keys = ALL_KEY_PERMISSIONS
-        permissions.secrets = ALL_SECRET_PERMISSIONS
-        permissions.certificates = ALL_CERT_PERMISSIONS
+        permissions.keys = KEY_PERMISSIONS_ALL
+        permissions.secrets = SECRET_PERMISSIONS_ALL
+        permissions.certificates = CERTIFICATE_PERMISSIONS_ALL
 
         policy = AccessPolicyEntry(self.config.tenant_id, self.config.client_oid, permissions)
 
-        properties = VaultProperties(self.config.tenant_id, Sku(name='standard'), policies=[policy])
+        properties = VaultProperties(self.config.tenant_id, Sku(name='standard'), access_policies=[policy])
 
         parameters = VaultCreateOrUpdateParameters(self.config.location, properties)
         parameters.properties.enabled_for_deployment = True
@@ -72,19 +60,24 @@ class KeyVaultRecoverySample(KeyVaultSampleBase):
         #       once soft delete has been enabled on the vault it cannot be disabled
         parameters.properties.enable_soft_delete = True
 
+        print('creating soft delete enabled vault: {}'.format(vault_name))
+
         # create the vault
         vault = self.keyvault_mgmt_client.vaults.create_or_update(self.config.group_name, vault_name, parameters)
 
-        print(vault)
+        # wait for vault DNS entry to be created
+        # see issue: https://github.com/Azure/azure-sdk-for-python/issues/1172
+        self._poll_for_vault_connection(vault.properties.vault_uri)
+
+        print('vault {} created enable_soft_delete={}'.format(vault.name, vault.properties.enable_soft_delete))
+
         return vault
 
-    def enable_soft_delete_on_existing_vault_sample(self):
+    @keyvaultsample
+    def enable_soft_delete_on_existing_vault(self):
         """        
-        Provides sample code for enableling soft delete on an existing vault
-        :return: None 
+        Provides sample code for enabling soft delete on an existing vault
         """
-        self.setup_sample()
-
         # create a vault without soft delete enabled
         vault = self.create_vault()
 
@@ -92,194 +85,268 @@ class KeyVaultRecoverySample(KeyVaultSampleBase):
         # all keys, certificates and secrets in the vault as well
         # NOTE: This value should only None or True, setting the value to false will cause a service validation error
         #       once soft delete has been enabled on the vault it cannot be disabled
-        vault.properties.enable_for_soft_delete = True
-        
-        # update the vault to enable soft delete 
-        self.keyvault_mgmt_client.vaults.create_or_update(self.config.group_name, vault_name, vault)
+        vault.properties.enable_soft_delete = True
 
-    def deleted_vault_sample(self):
+        # update the vault to enable soft delete 
+        vault = self.keyvault_mgmt_client.vaults.create_or_update(self.config.group_name,
+                                                          vault.name,
+                                                          VaultCreateOrUpdateParameters(vault.location, vault.properties))
+
+        print('updated vault {} enable_soft_delete={}'.format(vault.name, vault.properties.enable_soft_delete))
+
+    def _enable_soft_delete_for_vault(self, vault):
+        vault.properties.enable_soft_delete = True
+
+        # update the vault to enable soft delete
+        self.keyvault_mgmt_client.vaults.create_or_update(self.config.group_name,
+                                                          vault.name,
+                                                          VaultCreateOrUpdateParameters(vault.location, vault.properties))
+
+        print('updated vault {} enable_soft_delete={}'.format(vault.name, vault.properties.enable_soft_delete))
+
+
+    @keyvaultsample
+    def deleted_vault_recovery(self):
         """
         Provides a sample code for enumerating, retrieving, recovering and purging deleted key vaults
         :return: None 
         """
-        self.setup_sample()
-
         # create vaults enabling the soft delete feature on each
-        vault_to_recover = self.create_soft_delete_enabled_vault_sample()
-        vault_to_purge = self.create_soft_delete_enabled_vault_sample()
+        vault_to_recover = self.create_vault()
+        self._enable_soft_delete_for_vault(vault_to_recover)
+        vault_to_purge = self.create_vault()
+        self._enable_soft_delete_for_vault(vault_to_purge)
+
+        print('created vaults {} and {}'.format(vault_to_recover.name, vault_to_purge.name))
 
         # delete the vaults
         self.keyvault_mgmt_client.vaults.delete(self.config.group_name, vault_to_recover.name)
+        self._wait_on_delete_completed(None, 'vault', vault_to_recover.name)
+        print('Deleted vault: {}'.format(vault_to_recover.name))
+
         self.keyvault_mgmt_client.vaults.delete(self.config.group_name, vault_to_purge.name)
+        self._wait_on_delete_completed(None, 'vault', vault_to_purge.name)
+        print('Deleted vault: {}'.format(vault_to_purge.name))
 
         # list the deleted vaults
-        deleted_vaults = self.keyvault_mgmt_client.list_deleted()
-        print(deleted_vaults)
+        deleted_vaults = self.keyvault_mgmt_client.vaults.list_deleted()
+        print('Deleted Vaults: \n{}'.format(self._serialize(deleted_vaults)))
 
         # get the details of a specific deleted vault
-        deleted_info = self.keyvault_mgmt_client.get_deleted(vault_to_recover.name, vault_to_recover.location)
-        print(deleted_info)
+        deleted_info = self.keyvault_mgmt_client.vaults.get_deleted(vault_to_recover.name, vault_to_recover.location)
+        print('Deleted vault info for vault: {}\n{}'.format(vault_to_recover.name, deleted_info))
 
         # to restore the vault simply supply the group, location, and name and set the 'create_mode' vault property to 'recover'
         # setting this property will cause other properties passed to create_or_update to be ignored and will simply
         # restore the vault in the state it was when it was deleted
-        recovery_properties = VaultProperties(location=vault_to_recover.location, '', access_policies=[], create_mode='recover')
-        recovery_parameters = VaultCreateOrUpdateParameters(deleted_info.location, recovery_properties)
-        self.keyvault_mgmt_client.vaults.create_or_update(self.config.group_name, deleted_info.name, recovery_parameters)
+        recovery_properties = VaultProperties(tenant_id=self.config.tenant_id, sku=Sku(SkuName.standard.name), access_policies=[], create_mode='recover')
+        recovery_parameters = VaultCreateOrUpdateParameters(deleted_info.properties.location, recovery_properties)
+        recovered = self.keyvault_mgmt_client.vaults.create_or_update(self.config.group_name, deleted_info.name, recovery_parameters)
+        print('Recovered vault: {}'.format(recovered.name))
 
         # list the deleted vaults again only the vault we intend to purge is still deleted
-        deleted_vaults = self.keyvault_mgmt_client.list_deleted()
-        print(deleted_vaults)
+        deleted_vaults = self.keyvault_mgmt_client.vaults.list_deleted()
+        print('Deleted Vaults: \n{}'.format(self._serialize(deleted_vaults)))
 
         # purge the last deleted vault
         self.keyvault_mgmt_client.vaults.purge_deleted(vault_to_purge.name, vault_to_purge.location)
+        print('Purged vault: {}'.format(vault_to_recover.name))
 
         # verify no deleted vaults remain
-        deleted_vaults = self.keyvault_mgmt_client.list_deleted()
-        print(deleted_vaults)
+        deleted_vaults = self.keyvault_mgmt_client.vaults.list_deleted()
+        print('Deleted Vaults: \n{}'.format(self._serialize(deleted_vaults)))
 
-    def deleted_secret_sample(self):
+    @keyvaultsample
+    def deleted_secret_recovery(self):
         """
         Provides a sample code for enumerating, retrieving, recovering and purging deleted secrets from a key vault
         :return: None 
         """
-        self.setup_sample()
-
         # create a vault enabling the soft delete feature
-        vault = self.create_soft_delete_enabled_vault_sample()
+        vault = self.create_vault()
+        self._enable_soft_delete_for_vault(vault)
 
         # create secrets in the vault
-        secret_to_recover = self.get_unique_name()
-        secret_to_purge = self.get_unique_name()
-        self.keyvault_data_client.set_secret(vault.properties.vault_uri, secret_to_recover, "secret to restore")
-        self.keyvault_data_client.set_secret(vault.properties.vault_uri, secret_to_purge, "secret to purge")
+        secret_to_recover = get_name('secret')
+        secret_to_purge = get_name('secret')
 
-        # list the vaults secrets
+        secret = self.keyvault_data_client.set_secret(vault.properties.vault_uri, secret_to_recover, "secret to restore")
+        print('created secret {}\n{}'.format(secret_to_recover, self._serialize(secret)))
+
+        secret = self.keyvault_data_client.set_secret(vault.properties.vault_uri, secret_to_purge, "secret to purge")
+        print('created secret {}\n{}'.format(secret_to_purge, self._serialize(secret)))
+
+        # list the vault secrets
         secrets = self.keyvault_data_client.get_secrets(vault.properties.vault_uri)
-        print(secrets)
+        print('secrets: \n{}'.format(self._serialize(secrets)))
 
         # delete the secrets
-        self.keyvault_data_client.delete_secret(vault.properties.vault_uri, secret_to_recover)
-        self.keyvault_data_client.delete_secret(vault.properties.vault_uri, secret_to_purge)
+        deleted_secret = self.keyvault_data_client.delete_secret(vault.properties.vault_uri, secret_to_recover)
         self._wait_on_delete_completed(vault.properties.vault_uri, 'secret', secret_to_recover)
+        print('deleted secret {}\n{}'.format(secret_to_recover, self._serialize(deleted_secret)))
+
+        deleted_secret = self.keyvault_data_client.delete_secret(vault.properties.vault_uri, secret_to_purge)
         self._wait_on_delete_completed(vault.properties.vault_uri, 'secret', secret_to_purge)
+        print('deleted secret {}\n{}'.format(secret_to_purge, self._serialize(deleted_secret)))
 
         # list the deleted secrets
         deleted_secrets = self.keyvault_data_client.get_deleted_secrets(vault.properties.vault_uri)
-        print(deleted_secrets)
+        print('deleted secrets: \n{}'.format(self._serialize(deleted_secrets)))
 
         # recover a deleted secret
-        self.keyvault_data_client.recover_deleted_secret(vault.properties.vault_uri, secret_to_recover)
+        secret = self.keyvault_data_client.recover_deleted_secret(vault.properties.vault_uri, secret_to_recover)
+        self._wait_on_recover_completed(vault.properties.vault_uri, 'secret', secret_to_recover)
+        print('recovered secret {}\n{}'.format(secret_to_recover, self._serialize(secret)))
 
         # purge a deleted secret
         self.keyvault_data_client.purge_deleted_secret(vault.properties.vault_uri, secret_to_purge)
+        print('purged secret {}'.format(secret_to_purge))
 
-        # list the vaults secrets
+        # list the vault secrets
         secrets = self.keyvault_data_client.get_secrets(vault.properties.vault_uri)
-        print(secrets)
+        print('secrets: \n{}'.format(self._serialize(secrets)))
 
-    def deleted_key_sample(self):
+
+    @keyvaultsample
+    def deleted_key_recovery(self):
         """
         Provides a sample code for enumerating, retrieving, recovering and purging deleted keys from a key vault
         :return: None 
         """
-        self.setup_sample()
-
         # create a vault enabling the soft delete feature
-        vault = self.create_soft_delete_enabled_vault_sample()
+        vault = self.create_vault()
+        self._enable_soft_delete_for_vault(vault)
 
         # create keys in the vault
-        key_to_recover = self.get_unique_name()
-        key_to_purge = self.get_unique_name()
-        self.keyvault_data_client.create_key(vault.properties.vault_uri, key_to_recover, 'RSA')
-        self.keyvault_data_client.create_key(vault.properties.vault_uri, key_to_purge, 'RSA')
-        self._wait_on_delete_completed(vault.properties.vault_uri, 'key', key_to_recover)
-        self._wait_on_delete_completed(vault.properties.vault_uri, 'key', key_to_purge)
+        key_to_recover = get_name('key')
+        key_to_purge = get_name('key')
 
-        # list the vaults keys
+        key = self.keyvault_data_client.create_key(vault.properties.vault_uri, key_to_recover, 'RSA')
+        print('created key {}\n{}'.format(key_to_recover, self._serialize(key)))
+
+        key = self.keyvault_data_client.create_key(vault.properties.vault_uri, key_to_purge, 'RSA')
+        print('created key {}\n{}'.format(key_to_purge, self._serialize(key)))
+
+        # list the vault keys
         keys = self.keyvault_data_client.get_keys(vault.properties.vault_uri)
-        print(keys)
+        print('keys: \n{}'.format(self._serialize(keys)))
 
         # delete the keys
-        self.keyvault_data_client.delete_key(vault.properties.vault_uri, key_to_recover)
-        self.keyvault_data_client.delete_key(vault.properties.vault_uri, key_to_purge)
+        deleted_key = self.keyvault_data_client.delete_key(vault.properties.vault_uri, key_to_recover)
+        self._wait_on_delete_completed(vault.properties.vault_uri, 'key', key_to_recover)
+        print('deleted key {}\n{}'.format(key_to_recover, self._serialize(deleted_key)))
+
+        deleted_key = self.keyvault_data_client.delete_key(vault.properties.vault_uri, key_to_purge)
+        self._wait_on_delete_completed(vault.properties.vault_uri, 'key', key_to_purge)
+        print('deleted key {}\n{}'.format(key_to_purge, self._serialize(deleted_key)))
 
         # list the deleted keys
         deleted_keys = self.keyvault_data_client.get_deleted_keys(vault.properties.vault_uri)
-        print(deleted_keys)
+        print('deleted keys: \n{}'.format(self._serialize(deleted_keys)))
 
         # recover a deleted key
-        self.keyvault_data_client.recover_deleted_key(vault.properties.vault_uri, key_to_recover)
+        key = self.keyvault_data_client.recover_deleted_key(vault.properties.vault_uri, key_to_recover)
+        self._wait_on_recover_completed(vault.properties.vault_uri, 'key', key_to_recover)
+        print('recovered key {}\n{}'.format(key_to_recover, self._serialize(key)))
 
         # purge a deleted key
         self.keyvault_data_client.purge_deleted_key(vault.properties.vault_uri, key_to_purge)
+        print('purged key {}'.format(key_to_purge))
 
         # list the vaults key
         keys = self.keyvault_data_client.get_keys(vault.properties.vault_uri)
-        print(keys)
+        print('keys: \n{}'.format(self._serialize(keys)))
 
-    def deleted_certificate_sample(self):
+    @keyvaultsample
+    def deleted_certificate_recovery(self):
         """
         Provides a sample code for enumerating, retrieving, recovering and purging deleted certificates from a key vault
         :return: None 
         """
-        self.setup_sample()
-
         # create a vault enabling the soft delete feature
-        vault = self.create_soft_delete_enabled_vault_sample()
+        vault = self.create_vault()
+        self._enable_soft_delete_for_vault(vault)
 
         # create certificates in the vault
-        cert_to_recover = self.get_unique_name()
-        cert_to_purge = self.get_unique_name()
-        self.keyvault_data_client.create_certificate(vault.properties.vault_uri, cert_to_recover)
-        self.keyvault_data_client.create_certificate(vault.properties.vault_uri, cert_to_purge)
-        self._wait_on_delete_completed(vault.properties.vault_uri, 'certificate', cert_to_recover)
-        self._wait_on_delete_completed(vault.properties.vault_uri, 'certificate', cert_to_purge)
+        cert_to_recover = get_name('cert')
+        cert_to_purge = get_name('cert')
+
+        cert = self.keyvault_data_client.create_certificate(vault.properties.vault_uri, cert_to_recover)
+        print('created certificate {}\n{}'.format(cert_to_recover, self._serialize(cert)))
+
+        cert = self.keyvault_data_client.create_certificate(vault.properties.vault_uri, cert_to_purge)
+        print('created certificate {}\n{}'.format(cert_to_purge, self._serialize(cert)))
 
         # list the vaults certificates
         certs = self.keyvault_data_client.get_certificates(vault.properties.vault_uri)
-        print(certs)
+        print('certificates: \n{}'.format(self._serialize(certs)))
 
         # delete the certificates
-        self.keyvault_data_client.delete_certificate(vault.properties.vault_uri, cert_to_recover)
-        self.keyvault_data_client.delete_certificate(vault.properties.vault_uri, cert_to_purge)
+        deleted_cert = self.keyvault_data_client.delete_certificate(vault.properties.vault_uri, cert_to_recover)
+        self._wait_on_delete_completed(vault.properties.vault_uri, 'certificate', cert_to_recover)
+        print('deleted certificate {}\n{}'.format(cert_to_recover, self._serialize(deleted_cert)))
+
+        deleted_cert = self.keyvault_data_client.delete_certificate(vault.properties.vault_uri, cert_to_purge)
+        self._wait_on_delete_completed(vault.properties.vault_uri, 'certificate', cert_to_purge)
+        print('deleted certificate {}\n{}'.format(cert_to_purge, self._serialize(deleted_cert)))
 
         # list the deleted certificates
         deleted_certs = self.keyvault_data_client.get_deleted_certificates(vault.properties.vault_uri)
-        print(deleted_certs)
+        print('deleted certificates: \n{}'.format(self._serialize(deleted_certs)))
 
         # recover a deleted certificate
-        self.keyvault_data_client.recover_deleted_certificate(vault.properties.vault_uri, cert_to_recover)
+        cert = self.keyvault_data_client.recover_deleted_certificate(vault.properties.vault_uri, cert_to_recover)
+        self._wait_on_recover_completed(vault.properties.vault_uri, 'key', cert_to_recover)
+        print('recovered certificate {}\n{}'.format(cert_to_recover, self._serialize(cert)))
 
         # purge a deleted certificate
         self.keyvault_data_client.purge_deleted_certificate(vault.properties.vault_uri, cert_to_purge)
+        print('purged certificate {}'.format(cert_to_purge))
 
         # list the vaults certificate
         keys = self.keyvault_data_client.get_certificates(vault.properties.vault_uri)
-        print(keys)
-        
+        print('certificates: \n{}'.format(self._serialize(certs)))
+
     def _wait_on_delete_completed(self, vault_uri, entity_type, entity_name):
-        get_deleted_func = None
-        
         if entity_type == 'secret':
             get_deleted_func = self.keyvault_data_client.get_deleted_secret
+            args = (vault_uri, entity_name)
         elif entity_type == 'key':
             get_deleted_func = self.keyvault_data_client.get_deleted_key
-        else: # entity_type == 'certificate':
+            args = (vault_uri, entity_name)
+        elif entity_type == 'certificate':
             get_deleted_func = self.keyvault_data_client.get_deleted_certificate
+            args = (vault_uri, entity_name)
+        else:  # entity_type == 'vault'
+            get_deleted_func = self.keyvault_mgmt_client.vaults.get_deleted
+            args = (entity_name, self.config.location)
+        self._poll_while_404(get_deleted_func, args)
 
-        self._poll_while_404(get_deleted_func, args=(vault_uri, entity_name))
+    def _wait_on_recover_completed(self, vault_uri, entity_type, entity_name):
+        if entity_type == 'secret':
+            get_func = self.keyvault_data_client.get_secret
+            args = (vault_uri, entity_name, KeyVaultId.version_none)
+        elif entity_type == 'key':
+            get_func = self.keyvault_data_client.get_key
+            args = (vault_uri, entity_name, KeyVaultId.version_none)
+        elif entity_type == 'certificate':
+            get_func = self.keyvault_data_client.get_certificate
+            args = (vault_uri, entity_name, KeyVaultId.version_none)
+        else:  # entity_type == 'vault'
+            get_func = self.keyvault_mgmt_client.vaults.get
+            args = (entity_name, self.config.location)
+        self._poll_while_404(get_func, args)
         
     def _poll_while_404(self, func, args=(), retry_wait=10, max_retries=10):
         for x in range(max_retries):
             try:
                 return func(*args[0:]) 
-            except KeyVaultErrorException e:
+            except KeyVaultErrorException as e:
                 if not e.response.status_code == 404:
                     raise e
+                time.sleep(retry_wait)
 
 
 if __name__ == "__main__":
-    sample = KeyVaultRecoverySample()
-    sample.run_samples()
+    run_all_samples([SoftDeleteSample()])
 
