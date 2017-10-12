@@ -55,7 +55,7 @@ def keyvaultsample(f):
             f(self)
         except Exception as e:
             print('ERROR: running sample failed with raised exception:')
-            traceback.print_exception(type(e), e, e.__traceback__)
+            traceback.print_exception(type(e), e, getattr(e, '__traceback__', None))
     wrapper.__name__ = f.__name__
     wrapper.__doc__ = f.__doc__
     wrapper.kv_sample = True
