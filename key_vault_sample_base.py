@@ -63,7 +63,7 @@ def keyvaultsample(f):
 
 def run_all_samples(samples):
     """
-    runs all sample methods (methods marked with @keyvaultsample) on the specified samples objects, 
+    runs all sample methods (methods marked with @keyvaultsample) on the specified samples objects,
     filtering to any sample methods specified on the command line
     :param samples: a list of sample objects
     :return: None 
@@ -124,8 +124,9 @@ class KeyVaultSampleBase(object):
         :return: None 
         """
         if not self._setup_complete:
-            self.data_creds = None
             self.mgmt_creds = ServicePrincipalCredentials(client_id=self.config.client_id, secret=self.config.client_secret,
+                                                          tenant=self.config.tenant_id)
+            self.data_creds = ServicePrincipalCredentials(client_id=self.config.client_id, secret=self.config.client_secret,
                                                           tenant=self.config.tenant_id)
             self.resource_mgmt_client = ResourceManagementClient(self.mgmt_creds, self.config.subscription_id)
 
@@ -136,16 +137,8 @@ class KeyVaultSampleBase(object):
             self.resource_mgmt_client.resource_groups.create_or_update(self.config.group_name, {'location': self.config.location})
 
             self.keyvault_mgmt_client = KeyVaultManagementClient(self.mgmt_creds, self.config.subscription_id)
-            
-            def auth_callack(server, resource, scope):
-                self.data_creds = self.data_creds or ServicePrincipalCredentials(client_id=self.config.client_id,
-                                                                                 secret=self.config.client_secret,
-                                                                                 tenant=self.config.tenant_id,
-                                                                                 resource=resource)
-                token = self.data_creds.token
-                return token['token_type'], token['access_token']
 
-            self.keyvault_data_client = KeyVaultClient(KeyVaultAuthentication(auth_callack))
+            self.keyvault_data_client = KeyVaultClient(self.data_creds)
 
             self._setup_complete = True
 
@@ -164,18 +157,22 @@ class KeyVaultSampleBase(object):
         permissions.secrets = SECRET_PERMISSIONS_ALL
         permissions.certificates = CERTIFICATE_PERMISSIONS_ALL
         
-        policy = AccessPolicyEntry(self.config.tenant_id, self.config.client_oid, permissions)
+        policy = AccessPolicyEntry(tenant_id=self.config.tenant_id,
+                                   object_id=self.config.client_oid,
+                                   permissions=permissions)
 
-        properties = VaultProperties(self.config.tenant_id, Sku(name='standard'), access_policies=[policy])
+        properties = VaultProperties(tenant_id=self.config.tenant_id,
+                                     sku=Sku(name='standard'),
+                                     access_policies=[policy])
 
-        parameters = VaultCreateOrUpdateParameters(self.config.location, properties)
+        parameters = VaultCreateOrUpdateParameters(location=self.config.location, properties=properties)
         parameters.properties.enabled_for_deployment = True
         parameters.properties.enabled_for_disk_encryption = True
         parameters.properties.enabled_for_template_deployment = True
 
         print('creating vault {}'.format(vault_name))
 
-        vault = self.keyvault_mgmt_client.vaults.create_or_update(self.config.group_name, vault_name, parameters)
+        vault = self.keyvault_mgmt_client.vaults.create_or_update(self.config.group_name, vault_name, parameters).result()
 
         # wait for vault DNS entry to be created
         # see issue: https://github.com/Azure/azure-sdk-for-python/issues/1172
