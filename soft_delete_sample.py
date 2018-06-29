@@ -143,7 +143,7 @@ class SoftDeleteSample(KeyVaultSampleBase):
         recovery_properties = VaultProperties(tenant_id=self.config.tenant_id, sku=Sku(name=SkuName.standard.name), access_policies=[], create_mode='recover')
         recovery_parameters = VaultCreateOrUpdateParameters(location=deleted_info.properties.location,
                                                             properties=recovery_properties)
-        recovered = self.keyvault_mgmt_client.vaults.create_or_update(self.config.group_name, deleted_info.name, recovery_parameters)
+        recovered = self.keyvault_mgmt_client.vaults.create_or_update(self.config.group_name, deleted_info.name, recovery_parameters).result()
         print('Recovered vault: {}'.format(recovered.name))
 
         # list the deleted vaults again only the vault we intend to purge is still deleted
