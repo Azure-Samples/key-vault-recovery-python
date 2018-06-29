@@ -42,11 +42,15 @@ class SoftDeleteSample(KeyVaultSampleBase):
         permissions.secrets = SECRET_PERMISSIONS_ALL
         permissions.certificates = CERTIFICATE_PERMISSIONS_ALL
 
-        policy = AccessPolicyEntry(self.config.tenant_id, self.config.client_oid, permissions)
+        policy = AccessPolicyEntry(tenant_id=self.config.tenant_id,
+                                   object_id=self.config.client_oid,
+                                   permissions=permissions)
 
-        properties = VaultProperties(self.config.tenant_id, Sku(name='standard'), access_policies=[policy])
+        properties = VaultProperties(tenant_id=self.config.tenant_id,
+                                     sku=Sku(name='standard'),
+                                     access_policies=[policy])
 
-        parameters = VaultCreateOrUpdateParameters(self.config.location, properties)
+        parameters = VaultCreateOrUpdateParameters(location=self.config.location, properties=properties)
         parameters.properties.enabled_for_deployment = True
         parameters.properties.enabled_for_disk_encryption = True
         parameters.properties.enabled_for_template_deployment = True
@@ -86,7 +90,8 @@ class SoftDeleteSample(KeyVaultSampleBase):
         # update the vault to enable soft delete 
         vault = self.keyvault_mgmt_client.vaults.create_or_update(self.config.group_name,
                                                           vault.name,
-                                                          VaultCreateOrUpdateParameters(vault.location, vault.properties))
+                                                          VaultCreateOrUpdateParameters(location=vault.location,
+                                                                                        properties=vault.properties))
 
         print('updated vault {} enable_soft_delete={}'.format(vault.name, vault.properties.enable_soft_delete))
 
@@ -96,7 +101,8 @@ class SoftDeleteSample(KeyVaultSampleBase):
         # update the vault to enable soft delete
         self.keyvault_mgmt_client.vaults.create_or_update(self.config.group_name,
                                                           vault.name,
-                                                          VaultCreateOrUpdateParameters(vault.location, vault.properties))
+                                                          VaultCreateOrUpdateParameters(location=vault.location,
+                                                                                        properties=vault.properties))
 
         print('updated vault {} enable_soft_delete={}'.format(vault.name, vault.properties.enable_soft_delete))
 
@@ -134,9 +140,10 @@ class SoftDeleteSample(KeyVaultSampleBase):
         # to restore the vault simply supply the group, location, and name and set the 'create_mode' vault property to 'recover'
         # setting this property will cause other properties passed to create_or_update to be ignored and will simply
         # restore the vault in the state it was when it was deleted
-        recovery_properties = VaultProperties(tenant_id=self.config.tenant_id, sku=Sku(SkuName.standard.name), access_policies=[], create_mode='recover')
-        recovery_parameters = VaultCreateOrUpdateParameters(deleted_info.properties.location, recovery_properties)
-        recovered = self.keyvault_mgmt_client.vaults.create_or_update(self.config.group_name, deleted_info.name, recovery_parameters)
+        recovery_properties = VaultProperties(tenant_id=self.config.tenant_id, sku=Sku(name=SkuName.standard.name), access_policies=[], create_mode='recover')
+        recovery_parameters = VaultCreateOrUpdateParameters(location=deleted_info.properties.location,
+                                                            properties=recovery_properties)
+        recovered = self.keyvault_mgmt_client.vaults.create_or_update(self.config.group_name, deleted_info.name, recovery_parameters).result()
         print('Recovered vault: {}'.format(recovered.name))
 
         # list the deleted vaults again only the vault we intend to purge is still deleted
