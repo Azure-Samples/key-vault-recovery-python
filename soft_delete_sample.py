@@ -80,6 +80,11 @@ class SoftDeleteSample(KeyVaultSampleBase):
         self.keyvault_mgmt_client.vaults.delete(self.config.group_name, vault_to_purge.name)
         print('Deleted vault: {}'.format(vault_to_purge.name))
 
+        # list the deleted vaults
+        deleted_vaults = self.keyvault_mgmt_client.vaults.list_deleted()
+        for deleted_vault in deleted_vaults:
+            print(deleted_vault.name)
+
         # get the details of a specific deleted vault
         deleted_info = self.keyvault_mgmt_client.vaults.get_deleted(vault_to_recover.name, vault_to_recover.location)
         print('Deleted vault: {}'.format(deleted_info.properties))
@@ -93,13 +98,19 @@ class SoftDeleteSample(KeyVaultSampleBase):
         recovered = self.keyvault_mgmt_client.vaults.begin_create_or_update(self.config.group_name, deleted_info.name, recovery_parameters).result()
         print('Recovered vault: {}'.format(recovered.name))
 
+        # list the deleted vaults again only the vault we intend to purge is still deleted
+        deleted_vaults = self.keyvault_mgmt_client.vaults.list_deleted()
+        for deleted_vault in deleted_vaults:
+                    print(deleted_vault.name)
+
         # purge the last deleted vault
         self.keyvault_mgmt_client.vaults.begin_purge_deleted(vault_to_purge.name, vault_to_purge.location)
         print('Purged vault: {}'.format(vault_to_purge.name))
 
-        deleted = self.keyvault_mgmt_client.vaults.list_deleted()
-        for i in deleted:
-            print(i.name)
+        # verify no deleted vaults remain
+        deleted_vaults = self.keyvault_mgmt_client.vaults.list_deleted()
+        for deleted_vault in deleted_vaults:
+            print(deleted_vault.name)
 
 
     @keyvaultsample
@@ -110,6 +121,7 @@ class SoftDeleteSample(KeyVaultSampleBase):
         # create a vault enabling the soft delete feature
         vault = self.create_vault()
 
+        # create a secret client
         credential = DefaultAzureCredential()
         secret_client = SecretClient(vault_url=vault.properties.vault_uri, credential=credential)
 
@@ -129,7 +141,7 @@ class SoftDeleteSample(KeyVaultSampleBase):
         for secret_property in secret_properties:
             print(secret_property.name)
 
-        # # delete the secrets
+        # delete the secrets
         delete_secret_poller = secret_client.begin_delete_secret(secret_to_recover)
         deleted_secret = delete_secret_poller.result()
         delete_secret_poller.wait()
@@ -172,6 +184,7 @@ class SoftDeleteSample(KeyVaultSampleBase):
         # create a vault enabling the soft delete feature
         vault = self.create_vault()
         
+        # create a key client
         credential = DefaultAzureCredential()
         key_client = KeyClient(vault_url=vault.properties.vault_uri, credential=credential)
 
@@ -229,6 +242,7 @@ class SoftDeleteSample(KeyVaultSampleBase):
         # create a vault enabling the soft delete feature
         vault = self.create_vault()
 
+        # create a certificate client
         credential = DefaultAzureCredential()
         certificate_client = CertificateClient(vault_url=vault.properties.vault_uri, credential=credential)
 

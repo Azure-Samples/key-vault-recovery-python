@@ -35,6 +35,7 @@ class BackupRestoreSample(KeyVaultSampleBase):
         # create a key vault
         first_vault = self.create_vault()
 
+        # create a secret client
         credential = DefaultAzureCredential()
         first_secret_client = SecretClient(vault_url=first_vault.properties.vault_uri, credential=credential)
 
@@ -57,6 +58,8 @@ class BackupRestoreSample(KeyVaultSampleBase):
 
         # create a second vault
         second_vault = self.create_vault()
+
+        # create a secret client
         second_secret_client = SecretClient(vault_url=second_vault.properties.vault_uri, credential=credential)
 
         # restore the secret to the new vault
@@ -78,6 +81,7 @@ class BackupRestoreSample(KeyVaultSampleBase):
         # create a key vault
         first_vault = self.create_vault()
 
+        # create a key client
         credential = DefaultAzureCredential()
         first_key_client = KeyClient(vault_url=first_vault.properties.vault_uri, credential=credential)
 
@@ -99,6 +103,7 @@ class BackupRestoreSample(KeyVaultSampleBase):
         # create a second vault
         second_vault = self.create_vault()
 
+        # create a key client
         second_key_client = KeyClient(vault_url=second_vault.properties.vault_uri, credential=credential)
 
         # restore the key to the new vault
