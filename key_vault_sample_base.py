@@ -5,23 +5,16 @@
 # --------------------------------------------------------------------------
 import sys
 import os
-import time
-import json
 import inspect
 import traceback
-import azure.mgmt.keyvault.models
-import azure.keyvault.models
 from random import Random
 from key_vault_sample_config import KeyVaultSampleConfig
 from azure.mgmt.resource import ResourceManagementClient
 from azure.mgmt.keyvault import KeyVaultManagementClient
-from azure.keyvault import KeyVaultClient, KeyVaultAuthentication
-from msrest.exceptions import ClientRequestError
-from msrestazure.azure_active_directory import ServicePrincipalCredentials
-from msrest.paging import Paged
-from msrest.serialization import Serializer
 from azure.mgmt.keyvault.models import AccessPolicyEntry, VaultProperties, Sku, KeyPermissions, SecretPermissions, \
     CertificatePermissions, Permissions, VaultCreateOrUpdateParameters
+from azure.identity import DefaultAzureCredential
+
 
 SECRET_PERMISSIONS_ALL = [perm.value for perm in SecretPermissions]
 KEY_PERMISSIONS_ALL = [perm.value for perm in KeyPermissions]
@@ -105,16 +98,12 @@ class KeyVaultSampleBase(object):
     """
     def __init__(self):
         self.config = KeyVaultSampleConfig()
-        self.credentials = None
-        self.keyvault_data_client = None
+        # self.credentials = None
         self.keyvault_mgmt_client = None
         self.resource_mgmt_client = None
         self._setup_complete = False
         self.samples = {(name, m) for name, m in inspect.getmembers(self) if getattr(m, 'kv_sample', False)}
-        models = {}
-        models.update({k: v for k, v in azure.keyvault.models.__dict__.items() if isinstance(v, type)})
-        models.update({k: v for k, v in azure.mgmt.keyvault.models.__dict__.items() if isinstance(v, type)})
-        self._serializer = Serializer(models)
+
 
     def setup_sample(self):
         """
@@ -124,21 +113,20 @@ class KeyVaultSampleBase(object):
         :return: None 
         """
         if not self._setup_complete:
-            self.mgmt_creds = ServicePrincipalCredentials(client_id=self.config.client_id, secret=self.config.client_secret,
-                                                          tenant=self.config.tenant_id)
-            self.data_creds = ServicePrincipalCredentials(client_id=self.config.client_id, secret=self.config.client_secret,
-                                                          tenant=self.config.tenant_id)
-            self.resource_mgmt_client = ResourceManagementClient(self.mgmt_creds, self.config.subscription_id)
+            self.credential = DefaultAzureCredential()
 
-            # ensure the service principle has key vault as a valid provider
-            self.resource_mgmt_client.providers.register('Microsoft.KeyVault')
+            self.resource_mgmt_client = ResourceManagementClient(
+            credential=self.credential,
+            subscription_id=self.config.subscription_id
+            )
 
             # ensure the intended resource group exists
             self.resource_mgmt_client.resource_groups.create_or_update(self.config.group_name, {'location': self.config.location})
 
-            self.keyvault_mgmt_client = KeyVaultManagementClient(self.mgmt_creds, self.config.subscription_id)
-
-            self.keyvault_data_client = KeyVaultClient(self.data_creds)
+            self.keyvault_mgmt_client = KeyVaultManagementClient(
+            credential=self.credential,
+            subscription_id=self.config.subscription_id
+            )
 
             self._setup_complete = True
 
@@ -172,39 +160,11 @@ class KeyVaultSampleBase(object):
 
         print('creating vault {}'.format(vault_name))
 
-        vault = self.keyvault_mgmt_client.vaults.create_or_update(self.config.group_name, vault_name, parameters).result()
-
-        # wait for vault DNS entry to be created
-        # see issue: https://github.com/Azure/azure-sdk-for-python/issues/1172
-        self._poll_for_vault_connection(vault.properties.vault_uri)
+        vault = self.keyvault_mgmt_client.vaults.begin_create_or_update(self.config.group_name, vault_name, parameters).result()
 
         print('created vault {} {}'.format(vault_name, vault.properties.vault_uri))
 
         return vault
-
-    def _poll_for_vault_connection(self, vault_uri, retry_wait=10, max_retries=4):
-        """
-        polls the data client 'get_secrets' method until a 200 response is received indicating the the vault
-        is available for data plane requests
-        """
-        last_error = None
-        for x in range(max_retries - 1):
-            try:
-                # sleep first to avoid improper DNS caching
-                time.sleep(retry_wait)
-                self.keyvault_data_client.get_secrets(vault_uri)
-                return
-            except ClientRequestError as e:
-                print('vault connection not available')
-                last_error = e
-        raise last_error
-
-    def _serialize(self, obj):
-        if isinstance(obj, Paged):
-            serialized = [self._serialize(i) for i in list(obj)]
-        else:
-            serialized = self._serializer.body(obj, type(obj).__name__)
-        return json.dumps(serialized, indent=4, separators=(',', ': '))
 
 
 adjectives = ['able', 'acid', 'adept', 'aged', 'agile', 'ajar', 'alert', 'alive', 'all', 'ample',
