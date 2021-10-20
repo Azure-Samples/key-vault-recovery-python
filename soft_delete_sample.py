@@ -56,10 +56,11 @@ class SoftDeleteSample(KeyVaultSampleBase):
         vault.properties.enable_soft_delete = True
 
         # update the vault to enable soft delete 
-        vault = self.keyvault_mgmt_client.vaults.begin_create_or_update(self.config.group_name,
-                                                          vault.name,
-                                                          VaultCreateOrUpdateParameters(location=vault.location,
-                                                                                        properties=vault.properties)).result()
+        vault = self.keyvault_mgmt_client.vaults.begin_create_or_update(
+            self.config.group_name,
+            vault.name,
+            VaultCreateOrUpdateParameters(location=vault.location, properties=vault.properties)
+        ).result()
 
         print('updated vault {} enable_soft_delete={}'.format(vault.name, vault.properties.enable_soft_delete))
 

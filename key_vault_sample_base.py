@@ -98,7 +98,6 @@ class KeyVaultSampleBase(object):
     """
     def __init__(self):
         self.config = KeyVaultSampleConfig()
-        # self.credentials = None
         self.keyvault_mgmt_client = None
         self.resource_mgmt_client = None
         self._setup_complete = False
@@ -124,8 +123,8 @@ class KeyVaultSampleBase(object):
             self.resource_mgmt_client.resource_groups.create_or_update(self.config.group_name, {'location': self.config.location})
 
             self.keyvault_mgmt_client = KeyVaultManagementClient(
-            credential=self.credential,
-            subscription_id=self.config.subscription_id
+                credential=self.credential,
+                subscription_id=self.config.subscription_id
             )
 
             self._setup_complete = True
