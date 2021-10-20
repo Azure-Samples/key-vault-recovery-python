@@ -115,8 +115,8 @@ class KeyVaultSampleBase(object):
             self.credential = DefaultAzureCredential()
 
             self.resource_mgmt_client = ResourceManagementClient(
-            credential=self.credential,
-            subscription_id=self.config.subscription_id
+                credential=self.credential,
+                subscription_id=self.config.subscription_id
             )
 
             # ensure the intended resource group exists
