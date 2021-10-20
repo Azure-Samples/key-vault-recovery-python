@@ -44,10 +44,12 @@ class SoftDeleteSample(KeyVaultSampleBase):
     @keyvaultsample
     def enable_soft_delete_on_existing_vault(self):
         """        
-        enables soft delete on an existing vault
+        enables soft delete on an existing vault. 
+        Soft-delete will be enabled on all key vaults, the ability to opt out of soft-delete will be deprecated soon.
+        (See https://docs.microsoft.com/en-us/azure/key-vault/general/soft-delete-change)
         """
-        # create a vault without soft delete enabled
-        vault = self.create_vault()
+        # create a vault with soft delete enabled
+        vault = self.create_vault() 
 
         # this vault property controls whether recovery functionality is available on the vault itself as well as
         # all keys, certificates and secrets in the vault as well
