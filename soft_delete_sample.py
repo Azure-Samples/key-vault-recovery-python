@@ -49,7 +49,7 @@ class SoftDeleteSample(KeyVaultSampleBase):
         (See https://docs.microsoft.com/en-us/azure/key-vault/general/soft-delete-change)
         """
         # create a vault with soft delete enabled
-        vault = self.create_vault() 
+        vault = self.create_vault()
 
         # this vault property controls whether recovery functionality is available on the vault itself as well as
         # all keys, certificates and secrets in the vault as well

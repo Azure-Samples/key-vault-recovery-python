@@ -20,6 +20,7 @@ from key_vault_sample_base import KeyVaultSampleBase, keyvaultsample, get_name, 
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 from azure.keyvault.keys import KeyClient
+from azure.keyvault.certificates import CertificateClient, CertificatePolicy
 
 
 class BackupRestoreSample(KeyVaultSampleBase):
@@ -115,6 +116,51 @@ class BackupRestoreSample(KeyVaultSampleBase):
         print("keys in the second vault:")
         for key in keys:
             print(key.name)
+    
+
+    @keyvaultsample
+    def backup_restore_certificate(self):
+        """
+        backs up a key vault certificate and restores it to another key vault
+        """
+        # create a key vault
+        first_vault = self.create_vault()
+
+        # create a certificate client
+        credential = DefaultAzureCredential()
+        first_certificate_client = CertificateClient(vault_url=first_vault.properties.vault_uri, credential=credential)
+
+        # add a certificate to the vault
+        certificate_name = get_name('certificate')
+
+        certificate = first_certificate_client.begin_create_certificate(certificate_name, CertificatePolicy.get_default()).result()
+        print('created certificate {}'.format(certificate.name))
+
+        # list the certificates in the vault
+        certificate_properties = first_certificate_client.list_properties_of_certificates()
+        print("all of the certificates in the client's vault:")
+        for certificate_propertie in certificate_properties:
+            print(certificate_propertie.name)
+
+        # backup the certificate
+        backup = first_certificate_client.backup_certificate(certificate_name)
+        print('backed up certificate {}'.format(certificate_name))
+
+        # create a second vault
+        second_vault = self.create_vault()
+
+        # create a certificate client
+        second_certificate_client = CertificateClient(vault_url=second_vault.properties.vault_uri, credential=credential)
+
+        # restore the certificate to the new vault
+        restored = second_certificate_client.restore_certificate_backup(backup)
+        print('restored certificate {}'.format(restored.name))
+
+        # list the certificates in the new vault
+        secret_properties = second_certificate_client.list_properties_of_certificates()
+        print("all of the certificates in the new vault:")
+        for secret_propertie in secret_properties:
+            print(secret_propertie.name)
 
 
 if __name__ == "__main__":
