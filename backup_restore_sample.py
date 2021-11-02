@@ -139,8 +139,8 @@ class BackupRestoreSample(KeyVaultSampleBase):
         # list the certificates in the vault
         certificate_properties = first_certificate_client.list_properties_of_certificates()
         print("all of the certificates in the client's vault:")
-        for certificate_propertie in certificate_properties:
-            print(certificate_propertie.name)
+        for certificate_property in certificate_properties:
+            print(certificate_property.name)
 
         # backup the certificate
         backup = first_certificate_client.backup_certificate(certificate_name)
@@ -157,10 +157,10 @@ class BackupRestoreSample(KeyVaultSampleBase):
         print('restored certificate {}'.format(restored.name))
 
         # list the certificates in the new vault
-        secret_properties = second_certificate_client.list_properties_of_certificates()
+        certificate_properties = second_certificate_client.list_properties_of_certificates()
         print("all of the certificates in the new vault:")
-        for secret_propertie in secret_properties:
-            print(secret_propertie.name)
+        for certificate_property in certificate_properties:
+            print(certificate_property.name)
 
 
 if __name__ == "__main__":

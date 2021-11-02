@@ -22,6 +22,7 @@ from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 from azure.keyvault.keys import KeyClient
 from azure.keyvault.certificates import CertificateClient, CertificatePolicy
+import time
 
 
 class SoftDeleteSample(KeyVaultSampleBase):
@@ -46,9 +47,10 @@ class SoftDeleteSample(KeyVaultSampleBase):
         """        
         enables soft delete on an existing vault. 
         Soft-delete will be enabled on all key vaults, the ability to opt out of soft-delete will be deprecated soon.
-        (See https://docs.microsoft.com/en-us/azure/key-vault/general/soft-delete-change)
+        (See https://docs.microsoft.com/azure/key-vault/general/soft-delete-change)
         """
         # create a vault with soft delete enabled
+        # This sample works with a vault that has soft delete disabled, but that we create one with soft delete enabled because soft delete will be enforced soon.
         vault = self.create_vault()
 
         # this vault property controls whether recovery functionality is available on the vault itself as well as
@@ -89,16 +91,16 @@ class SoftDeleteSample(KeyVaultSampleBase):
             print(deleted_vault.name)
 
         # get the details of a specific deleted vault
-        deleted_info = self.keyvault_mgmt_client.vaults.get_deleted(vault_to_recover.name, vault_to_recover.location)
-        print('Deleted vault: {}'.format(deleted_info.properties))
+        deleted_vault = self.keyvault_mgmt_client.vaults.get_deleted(vault_to_recover.name, vault_to_recover.location)
+        print('Deleted vault: {}'.format(deleted_vault.name))
 
         # to restore the vault simply supply the group, location, and name and set the 'create_mode' vault property to 'recover'
         # setting this property will cause other properties passed to create_or_update to be ignored and will simply
         # restore the vault in the state it was when it was deleted
         recovery_properties = VaultProperties(tenant_id=self.config.tenant_id, sku=Sku(name=SkuName.standard.name), access_policies=[], create_mode='recover')
-        recovery_parameters = VaultCreateOrUpdateParameters(location=deleted_info.properties.location,
+        recovery_parameters = VaultCreateOrUpdateParameters(location=deleted_vault.properties.location,
                                                             properties=recovery_properties)
-        recovered = self.keyvault_mgmt_client.vaults.begin_create_or_update(self.config.group_name, deleted_info.name, recovery_parameters).result()
+        recovered = self.keyvault_mgmt_client.vaults.begin_create_or_update(self.config.group_name, deleted_vault.name, recovery_parameters).result()
         print('Recovered vault: {}'.format(recovered.name))
 
         # list the deleted vaults again only the vault we intend to purge is still deleted
@@ -107,11 +109,12 @@ class SoftDeleteSample(KeyVaultSampleBase):
                     print(deleted_vault.name)
 
         # purge the last deleted vault
-        self.keyvault_mgmt_client.vaults.begin_purge_deleted(vault_to_purge.name, vault_to_purge.location)
+        self.keyvault_mgmt_client.vaults.begin_purge_deleted(vault_to_purge.name, vault_to_purge.location).wait()
         print('Purged vault: {}'.format(vault_to_purge.name))
 
         # verify no deleted vaults remain
         deleted_vaults = self.keyvault_mgmt_client.vaults.list_deleted()
+        print('Deleted vaults:')
         for deleted_vault in deleted_vaults:
             print(deleted_vault.name)
 
@@ -164,12 +167,11 @@ class SoftDeleteSample(KeyVaultSampleBase):
         # recover a deleted secret
         recover_secret_poller = secret_client.begin_recover_deleted_secret(secret_to_recover)
         recovered_secret = recover_secret_poller.result()
-        recover_secret_poller.wait()
-
         print('recovered secret {}'.format(recovered_secret.name))
 
         # purge a deleted secret
         secret_client.purge_deleted_secret(secret_to_purge)
+        time.sleep(50)
         print('purged secret {}'.format(secret_to_purge))
 
         # list the name of all of the secrets in the client's vault
@@ -223,11 +225,11 @@ class SoftDeleteSample(KeyVaultSampleBase):
         # recover a deleted key
         recover_key_poller = key_client.begin_recover_deleted_key(key_to_recover)
         recovered_key = recover_key_poller.result()
-        recover_key_poller.wait()
         print('recovered key {}'.format(recovered_key.name))
 
         # purge a deleted key
         key_client.purge_deleted_key(key_to_purge)
+        time.sleep(50)
         print('purged key {}'.format(key_to_purge))
 
         # list the vaults key
@@ -254,10 +256,12 @@ class SoftDeleteSample(KeyVaultSampleBase):
         cert_to_purge = get_name('cert')
 
         create_certificate_poller = certificate_client.begin_create_certificate(cert_to_recover, policy=CertificatePolicy.get_default())
-        print('created certificate {}'.format(create_certificate_poller.result()))
+        created_certificate = create_certificate_poller.result()
+        print('created certificate {}'.format(created_certificate.name))
 
         create_certificate_poller = certificate_client.begin_create_certificate(cert_to_purge, policy=CertificatePolicy.get_default())
-        print('created certificate {}'.format(create_certificate_poller.result()))
+        created_certificate = create_certificate_poller.result()
+        print('created certificate {}'.format(created_certificate.name))
 
         # list the vault certificates
         certificates = certificate_client.list_properties_of_certificates()
@@ -278,18 +282,18 @@ class SoftDeleteSample(KeyVaultSampleBase):
 
         # list the deleted certificates
         deleted_certs = certificate_client.list_deleted_certificates()
-        print('list the deleted certificates')
+        print('deleted certificates:')
         for deleted_cert in deleted_certs:
             print(deleted_cert.name)
 
         # recover a deleted certificate
         recovered_certificate_poller = certificate_client.begin_recover_deleted_certificate(cert_to_recover)
         recovered_certificate_certificate = recovered_certificate_poller.result()
-        recovered_certificate_poller.wait()
         print('recovered certificate {}'.format(recovered_certificate_certificate.name))
 
         # purge a deleted certificate
         certificate_client.purge_deleted_certificate(cert_to_purge)
+        time.sleep(50)
         print('purged certificate {}'.format(cert_to_purge))
 
         # list the vault certificates
