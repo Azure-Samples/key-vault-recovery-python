@@ -236,7 +236,7 @@ class SoftDeleteSample(KeyVaultSampleBase):
 
         # list the vaults key
         keys = key_client.list_properties_of_keys()
-        print("keys:")
+        print("all of the keys in the client's vault:")
         for key in keys:
             print(key.name)
 
