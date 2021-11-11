@@ -87,6 +87,7 @@ class SoftDeleteSample(KeyVaultSampleBase):
 
         # list the deleted vaults
         deleted_vaults = self.keyvault_mgmt_client.vaults.list_deleted()
+        print("Deleted vaults:")
         for deleted_vault in deleted_vaults:
             print(deleted_vault.name)
 
@@ -105,6 +106,7 @@ class SoftDeleteSample(KeyVaultSampleBase):
 
         # list the deleted vaults again only the vault we intend to purge is still deleted
         deleted_vaults = self.keyvault_mgmt_client.vaults.list_deleted()
+        print("Deleted vaults:")
         for deleted_vault in deleted_vaults:
                     print(deleted_vault.name)
 
@@ -298,7 +300,7 @@ class SoftDeleteSample(KeyVaultSampleBase):
 
         # list the vault certificates
         certificates = certificate_client.list_properties_of_certificates()
-        print('list the vault certificates')
+        print("all of the certificates in the client's vault:")
         for certificate in certificates:
             print(certificate.name)
 
